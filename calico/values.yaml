@@ -1,0 +1,46 @@
+calicoNetwork:
+  ipPools:
+    - cidr: "192.168.0.0/16"
+      encapsulation: VXLAN
+      natOutgoing: true
+      nodeSelector: "all()"
+  nodeAddressAutodetectionV4:
+    skipInterface: "non-existent-interface"
+
+installation:
+  controlPlaneTolerations:
+    - key: "CriticalAddonsOnly"
+      operator: "Exists"
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+  controlPlaneNodeSelector:
+    kubernetes.io/os: "linux"
+
+cni:
+  binDir: "/opt/cni/bin"
+  confDir: "/etc/cni/net.d"
+
+# Reflects the requirement for systemd as the cgroup driver due to the specific containerd configuration.
+kubeletService:
+  systemdCgroup: true
+
+# API Server Configuration (Enable if using Calico's API server)
+apiServer:
+  enabled: false
+
+# Default node selector to ensure Calico components run on Linux nodes
+nodeSelector:
+  kubernetes.io/os: linux
+
+typhaDeployment:
+  spec:
+    template:
+      spec:
+        tolerations:
+          - key: "CriticalAddonsOnly"
+            operator: "Exists"
+          - key: "node-role.kubernetes.io/control-plane"
+            operator: "Exists"
+          # Add any additional tolerations needed for your environment
+        nodeSelector:
+          kubernetes.io/os: linux

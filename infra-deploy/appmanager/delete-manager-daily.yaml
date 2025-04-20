@@ -1,0 +1,64 @@
+# ServiceAccount: Create a dedicated service account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pod-deleter-sa
+  namespace: app-manager
+
+---
+# Role: Define permissions to delete pods
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-deleter-role
+  namespace: app-manager
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+
+---
+# RoleBinding: Bind the Role to the ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-deleter-rolebinding
+  namespace: app-manager
+subjects:
+  - kind: ServiceAccount
+    name: pod-deleter-sa  # Refer to the dedicated ServiceAccount
+    namespace: app-manager
+roleRef:
+  kind: Role
+  name: pod-deleter-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# CronJob: Use the dedicated ServiceAccount
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: delete-app-pod-daily
+  namespace: app-manager  
+spec:
+  schedule: "0 0 * * *"  # Runs every day at midnight
+  successfulJobsHistoryLimit: 3  # Retain 3 successful job histories
+  failedJobsHistoryLimit: 1      # Retain only 1 failed job history
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: pod-deleter-sa  # Use the dedicated ServiceAccount
+          containers:
+          - name: delete-pod
+            image: bitnami/kubectl:latest
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Deleting pods with label app=app-manager..."
+              kubectl delete pod -l app=app-manager -n app-manager 
+              echo "Pod deletion complete."
+          restartPolicy: Never
+

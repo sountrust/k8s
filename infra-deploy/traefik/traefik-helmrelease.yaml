@@ -1,0 +1,63 @@
+# flux/traefik/traefik-helmrelease.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: traefik
+  namespace: default
+spec:
+  interval: 1m0s
+  releaseName: traefik
+  chart:
+    spec:
+      chart: traefik
+      sourceRef:
+        kind: HelmRepository
+        name: traefik
+        namespace: flux-system
+      version: "28.1.0-beta.3"
+  install:
+    createNamespace: true
+  values:
+
+    ports:
+      web:
+        port: 8080  # Traefik listens on this port inside the pod
+        expose:
+          default: true
+        exposedPort: 80  # Public port
+        protocol: TCP
+        nodePort: 30080  # Set this to fix the nodePort instead of letting Kubernetes assign it randomly
+        exposeInternal: false
+        redirectTo:
+          port: websecure
+      websecure:
+        port: 8443  # Traefik listens on this port inside the pod for HTTPS traffic
+        expose:
+          default: true
+        exposedPort: 443  # Public port
+        protocol: TCP
+        nodePort: 30443  # Set this to fix the nodePort instead of letting Kubernetes assign it randomly
+        exposeInternal: false
+        tls:
+          enabled: true
+
+    ingressRoute:
+      dashboard:
+        enabled: false
+
+    service:
+      type: NodePort
+      enabled: true
+
+    additionalArguments:
+      - --log.level=DEBUG
+
+    ingressClass:
+      enabled: true
+      isDefaultClass: true
+
+    deployment:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "9100"

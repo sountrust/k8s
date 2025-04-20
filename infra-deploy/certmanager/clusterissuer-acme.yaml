@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: acme-issuer
+spec:
+  acme:
+    # Configure your email here...
+    email: email@your-cloud.app
+
+    # Configure your server here...
+    # Letsencrypt Production
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # - or -
+    # Letsencrypt Staging
+    # server: https://acme-staging-v02.api.letsencrypt.org/directory
+
+    privateKeySecretRef:
+      name: letsencrypt-private-key
+    solvers:
+
+    # HTTP Challenge:
+    - http01:
+       ingress:
+         class: traefik

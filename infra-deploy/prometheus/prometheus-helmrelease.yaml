@@ -1,0 +1,111 @@
+# flux/prometheus/prometheus-helmrelease.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: prometheus-stack
+  namespace: monitoring
+spec:
+  interval: 1m0s
+  releaseName: prometheus-stack
+  chart:
+    spec:
+      chart: kube-prometheus-stack
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+        namespace: flux-system
+      version: "61.2.0"  # Specify the desired version
+  install:
+    createNamespace: true
+  values:
+    prometheus:
+      prometheusSpec:
+        retention: 5d  # Retain metrics for 10 days
+        retentionSize: 512MB  # No maximum size for the metrics
+        tsdb:
+          outOfOrderTimeWindow: 0s  # Default value, no out-of-order samples allowed
+        walCompression: true  # Enable WAL compression to reduce disk usage
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              accessModes: ["ReadWriteOnce"]
+              storageClassName: "nfs-client"
+              resources:
+                requests:
+                  storage: 1Gi  # Adjust the size as needed
+
+        additionalScrapeConfigs:
+          - job_name: 'traefik'
+            kubernetes_sd_configs:
+              - role: pod
+            relabel_configs:
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                action: keep
+                regex: true
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                action: replace
+                target_label: __metrics_path__
+              - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: replace
+                regex: (.+):(?:\d+);(.+)
+                replacement: ${1}:${2}
+                target_label: __address__
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: drop
+                regex: 8080
+
+          - job_name: 'cert-manager'
+            kubernetes_sd_configs:
+              - role: pod
+            relabel_configs:
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                action: keep
+                regex: true
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                action: replace
+                target_label: __metrics_path__
+              - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: replace
+                regex: (.+):(?:\d+);(.+)
+                replacement: ${1}:${2}
+                target_label: __address__
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: keep
+                regex: ^9402$
+
+          - job_name: 'flux'
+            kubernetes_sd_configs:
+              - role: pod
+            relabel_configs:
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                action: keep
+                regex: true
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                action: replace
+                target_label: __metrics_path__
+              - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: replace
+                regex: (.+):(?:\d+);(.+)
+                replacement: ${1}:${2}
+                target_label: __address__
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: keep
+                regex: ^8080$
+    kubeStateMetrics:
+      enabled: true
+      metricRelabelings:
+        - source_labels: [__name__]
+          regex: 'gotk_resource_info'
+          action: keep
+
+    grafana:
+      ingress:
+        enabled: true
+        ingressClassName: traefik
+        hosts:
+          - dev.dashboard.your.site
+        tls:
+          - secretName: grafana  # The name of the secret containing the TLS certificate
+            hosts:
+              - dev.dashboard.your.site
+

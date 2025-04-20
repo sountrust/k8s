@@ -1,0 +1,254 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cassandra
+  namespace: helperiance-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cassandra
+  template:
+    metadata:
+      labels:
+        app: cassandra
+    spec:
+      containers:
+      - name: cassandra
+        image: docker.io/helperiance/cassandra:5.0.0
+        env:
+        - name: CASSANDRA_LOGIN
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: spring.data.cassandra.username
+        - name: CASSANDRA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: spring.data.cassandra.password
+        volumeMounts:
+        - name: cassandra-data
+          mountPath: /var/lib/cassandra
+      volumes:
+      - name: cassandra-data
+        persistentVolumeClaim:
+          claimName: cassandra-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cassandra-pvc
+  namespace: helperiance-manager
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: nfs-client
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cassandra
+  namespace: helperiance-manager
+spec:
+  ports:
+  - port: 9042
+    targetPort: 9042
+  selector:
+    app: cassandra
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: helperiance-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: helperiance-manager
+  template:
+    metadata:
+      labels:
+        app: helperiance-manager
+    spec:
+      containers:
+      - name: app
+        image: helperiance/helperiance-manager:1.0.9
+        env:
+        - name: start.event.id
+          value: "4435"
+        - name: mail.test-connection
+          value: "false"
+        - name: mail.test-connection.email
+          value: "it@breachless.fr"
+        - name: mail.host
+          value: "mail.mccloud.app"
+        - name: mail.port
+          value: "465"
+        - name: mail.username
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: mail.username
+        - name: mail.password
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: mail.password
+        - name: mail.properties.smtp.auth
+          value: "true"
+        - name: mail.properties.smtp.starttls.enable
+          value: "true"
+        - name: mail.properties.debug
+          value: "false"
+        - name: mail.properties.cc
+          value: "cloud-follow-up@mccloud.app"
+        - name: mail.admin.user
+          value: "cloud-follow-up@mccloud.app"
+        - name: bricks.admin.user
+          value: "cloud-follow-up@mccloud.app"
+        - name: mail.template.header
+          value: "/app/templates/header.txt"
+        - name: mail.template.footer
+          value: "/app/templates/footer.txt"
+        - name: mail.template.payment
+          value: "/app/templates/payment-template.txt"
+        - name: mail.template.created.brick
+          value: "/app/templates/brick-creation-template.txt"
+        - name: mail.template.paused.brick
+          value: "/app/templates/brick-paused-template.txt"
+        - name: mail.template.rm.brick
+          value: "/app/templates/brick-removed-template.txt"
+        - name: mail.template.add.user
+          value: "/app/templates/added-user-template.txt"
+        - name: mail.template.rm.user
+          value: "/app/templates/removed-user-template.txt"
+        - name: mail.template.delay.expired
+          value: "/app/templates/payment-delay-expired-template.txt"
+        - name: mail.template.for.new.user
+          value: "/app/templates/added-user-template-for-created-user.txt"
+        - name: mail.template.renew.payment.ok
+          value: "/app/templates/renew-payment-ok-template.txt"
+        - name: mail.template.followup.new.brick
+          value: "/app/templates/follow-up-new-brick-template.txt"
+        - name: dns.api.user
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: dns.api.user
+        - name: dns.api.key
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: dns.api.key
+        - name: dns.api.url.get.all
+          value: "https://s23.monarobase.net:2083/execute/DNS/parse_zone?zone=mccloud.app"
+        - name: dns.api.url.post.row
+          value: "https://s23.monarobase.net:2083/execute/DNS/mass_edit_zone"
+        - name: dns.api.url.delete.row
+          value: "https://s23.monarobase.net:2083/execute/DNS/mass_edit_zone"
+        - name: dns.api.random.sub.domain.size
+          value: "15"
+        - name: dns.suitecrm.main.cname
+          value: "suitecrm.mccloud.app"
+        - name: dns.ged.main.cname
+          value: "ged.mccloud.app"
+        - name: dns.backup.main.cname
+          value: "backup.mccloud.app"
+        - name: dns.domain
+          value: "mccloud.app"
+        - name: time.delay.hours.waiting.users.creation
+          value: "1"
+        - name: time.delay.days.before.pause.brick
+          value: "24"
+        - name: time.delay.days.before.delete.brick
+          value: "24"
+        - name: spring.data.cassandra.contact-points
+          value: "cassandra"
+        - name: spring.data.cassandra.port
+          value: "9042"
+        - name: spring.data.cassandra.keyspace-name
+          value: "helperiancemanager"
+        - name: spring.data.cassandra.schema-action
+          value: "CREATE_IF_NOT_EXISTS"
+        - name: spring.data.cassandra.username
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: spring.data.cassandra.username
+        - name: spring.data.cassandra.password
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: spring.data.cassandra.password
+        - name: spring.mvc.validation.enabled
+          value: "true"
+        - name: memberpress.api.url
+          value: "https://www.mccloud.app/"
+        - name: memberpress.api.key
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: memberpress.api.key
+        - name: memberpress.api.username
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: memberpress.api.username
+        - name: memberpress.api.consumer.nb
+          value: "100"
+        - name: memberpress.api.memberpress.producer.doit.sleep
+          value: "100"
+        - name: memberpress.api.timer.event.producer.doit.sleep
+          value: "100"
+        - name: memberpress.api.timer.event.consumer.doit.sleep
+          value: "100"
+        - name: memberpress.api.memberpress.fail.counter.max
+          value: "10"
+        - name: memberpress.api.memberpress.producer.sleep.fail.time.ms
+          value: "10000"
+        - name: crm.deploy.script.name
+          value: "auto-deploy-suitecrm-manifest.sh"
+        - name: crm.pause.script.name
+          value: "auto-pause-suitecrm.sh"
+        - name: ged.deploy.script.name
+          value: "auto-deploy-seeddms-manifest.sh"
+        - name: ged.pause.script.name
+          value: "auto-pause-seeddms.sh"
+        - name: backup.deploy.script.name
+          value: "auto-deploy-owncloud-manifest.sh"
+        - name: backup.pause.script.name
+          value: "auto-pause-owncloud.sh"
+        - name: deploy.all.scripts.location
+          value: "/app/kube-deploy/builder"
+        - name: repo.to.pull.before.deploy
+          value: "/app/kube-deploy"
+        - name: crm.pvcSize
+          value: "2Gi"
+        - name: ged.pvcSize
+          value: "2Gi"
+        - name: backup.pvcSize
+          value: "4Gi"
+        - name: spring.debugmodeon
+          value: "false"
+        - name: help.api.token
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: help.api.token
+        - name: help.api.helpurl
+          value: "https://www.mccloud.app/support/"
+        - name: git_clonne
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: git_clonne
+

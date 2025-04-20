@@ -1,0 +1,5 @@
+resources:
+  - prometheus-namespace.yaml
+  - prometheus-helm-repo.yaml
+  - prometheus-helmrelease.yaml
+  - grafana-certificate.yaml

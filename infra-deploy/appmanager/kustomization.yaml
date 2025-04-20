@@ -1,0 +1,3 @@
+resources:
+  - appmanager-deployment.yaml
+  - delete-manager-daily.yaml
