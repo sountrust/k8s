@@ -138,6 +138,3 @@ git commit -m "Update app-manager config"
 # Push
 git push
 ```
-
----
-```
