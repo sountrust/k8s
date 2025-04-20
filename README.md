@@ -1,4 +1,3 @@
-```markdown
 # 🧠 Kubernetes GitOps Configuration
 
 This repository defines the GitOps structure for deploying and managing both the **infrastructure** and **application workloads** of a kubernetes cluster using [Flux CD](https://fluxcd.io/).
