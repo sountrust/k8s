@@ -1,0 +1,3 @@
+[submodule "continuous-app-deploy"]
+	path = continuous-app-deploy
+	url = git@github.com:sountrust/continuous-app-deploy.git
